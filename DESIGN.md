@@ -10,7 +10,8 @@
 ```
 market-data-gateway/
 ├── cmd/
-│   └── main.go
+│   └── gateway
+|           └──main.go
 ├── internal/
 │   ├── adapters/
 │   │   ├── exchanges/
