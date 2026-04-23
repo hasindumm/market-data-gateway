@@ -20,3 +20,53 @@
 **Next:**
 - need to decide where to start development 
 - decided to first implemet for binance and then should be able to plug kraken seemlessly 
+
+## 2026-04-23 — implementation of web socket server
+
+**Goal:** implement simple websocker manager and client 
+
+**What worked:**
+- client read/write and manager functions serveWS and wireup with clients fucntions
+
+**What broke (and why):**
+- inside serveWS as a defer connection.close applied it. so it disconnect socket right after connects.
+
+**Concept unlocked:**
+- websocket connection should close at remove client or shut down or issue first occur in write massage
+- closing same chanel twice panics
+
+**Still fuzzy:**
+- still not much clear about the shut down at ctrl+c should handle
+
+
+**Next:**
+- gracefull shut down (clear resources properly related to the websocket server implmentation)
+
+
+## 2026-04-23 — implementation of web socket server
+
+**Goal:** implement gracefull shutdown in websocket server 
+
+**What worked:**
+- added waitGroup into manager to track active go readMessage routines
+- Shutdown() closing all conns first then wg.Wait()
+- signal handling in main with os.Interrupt, running ListenAndServe in a goroutine
+  so main stays free to wait on the signal channel
+
+
+**What broke (and why):**
+- initially didn't understand why ListenAndServe need to be in a goroutine it blocks forever, so without the goroutine the signal handling code never runs
+
+**Concept unlocked:**
+- waitGroup behavahiour , how conters works and when to use add , done and wait
+- shutdown has an order, stop new connections first, then signal existing ones,
+  then wait.
+
+**Still fuzzy:**
+- context propagation, understand the concept but not sure how it threads through
+  when adapters come in
+
+
+**Next:**
+- add context to manager and wire it through when building exchange adapters
+
