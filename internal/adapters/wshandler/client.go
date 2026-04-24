@@ -32,14 +32,15 @@ func (c *client) readMessage() {
 		if err != nil {
 			// We only want to log Strange errors,  not normal Disconnection
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-				log.Printf("error reading message: %v", err)
+				log.Printf("readMessage: unexpected close: %v", err)  
 			}
 			return
 		}
+		// just for testing
 		log.Println("MessageType: ", mt)
 		log.Println("Payload: ", string(payload))
 
-		//just for testing
+		// just for testing
 		for client := range c.manager.clients {
 			client.send <- payload
 		}
@@ -51,7 +52,7 @@ func (c *client) writeMessage() {
 
 	for msg := range c.send {
 		if err := c.conn.WriteMessage(websocket.TextMessage, msg); err != nil {
-			log.Println(err)
+			log.Printf("writeMessage: failed to write: %v", err) 
 			c.conn.Close()
 			return
 		}

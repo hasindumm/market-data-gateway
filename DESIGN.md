@@ -66,3 +66,24 @@ Each client has a buffered send channel `make(chan []byte, 256)`.
 Buffer sizing rationale:
 - this section depends on how binance and kraken together produce updates
 
+
+## Domain and Core Design
+
+### Domain Types
+
+**Level**
+Represents a single price point in the order book, holding a price and quantity as float64.
+
+**OrderBook**
+Represents the full state of an order book for a symbol, containing a symbol, bids, and asks.
+
+**Update**
+Represents an incremental change to an order book for a symbol. Although it has the same structure as OrderBook, the meaning is different — OrderBook is full state, Update is a change event.
+
+### Core Store
+
+Store holds a `map[string]domain.OrderBook` keyed by symbol. It uses `sync.RWMutex` because it can be modified by multiple goroutines concurrently. Adapters write updates while WS clients read snapshots. RWMutex allows concurrent reads without blocking each other, while writes get exclusive access.
+
+### Binance Adapter
+
+The Binance adapter is responsible for fetching data from Binance and converting it to domain types. Conversion happens at the adapter boundary so core never sees exchange-specific formats.

@@ -31,7 +31,7 @@ func (m *manager) ServeWS(w http.ResponseWriter, r *http.Request) {
 
 	conn, err := websocketUpgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Println("upgrade to websocket connection failed", err)
+		 log.Printf("serveWS: failed to upgrade connection: %v", err)
 		return
 	}
 
@@ -40,8 +40,8 @@ func (m *manager) ServeWS(w http.ResponseWriter, r *http.Request) {
 
 	m.wg.Add(1)
 	go func(){
-		client.readMessage()
 		defer m.wg.Done()
+		client.readMessage()
 	}()
 	go client.writeMessage()
 

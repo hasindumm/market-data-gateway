@@ -70,3 +70,31 @@
 **Next:**
 - add context to manager and wire it through when building exchange adapters
 
+
+
+## 2026-04-24 — implementation of domain data shapes and binance adapter snapshot fetch
+
+**Goal:** implement domain data shapes and binance adapter snapshot fetch
+
+**What worked:**
+- created domain types
+- fetch snapshot data from binance
+- covert binance response to unified model
+
+
+**What broke (and why):**
+- nothing broke today, but had confusion about where type conversion should happen — 
+  initially thought core should convert, realised it's the adapter's responsibility
+
+**Concept unlocked:**
+- strconv.ParseFloat like methods behaviours
+- http.NewRequestWithContext how to use
+- Why conversion happens in adapter not core
+
+**Still fuzzy:**
+- How WS stream updates will flow into core?
+
+
+**Next:**
+- implement Binance WebSocket stream to receive live order book updates
+
