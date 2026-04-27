@@ -98,3 +98,29 @@
 **Next:**
 - implement Binance WebSocket stream to receive live order book updates
 
+
+## 2026-04-27 — implementation of pipeline/ dummy exchange /fan-in design /interface design and wireup testing at main
+
+**Goal:** implement pipeline and use fan in design to data flow 
+implemet proper interface design at the consumer of the exchanges 
+implement a dummy exchange to test things and properly design (future exchnages should be able to plug and play)
+test wiring up at the main 
+
+**What worked:**
+- data flows through dummy exchanges channels to the one merge channel
+- wires things (store, pipeline and exchanges)
+
+
+**What broke (and why):**
+- applying changes into store seems broke
+
+**Concept unlocked:**
+- fan-in design patter
+- interface usage at the consumer side
+
+**Still fuzzy:**
+- applying changes flows through the merge channel to store logic seems in correct and fuzzy 
+
+
+**Next:**
+- implement solid way to apply changes flows through the merge channel to store 

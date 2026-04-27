@@ -87,3 +87,27 @@ Store holds a `map[string]domain.OrderBook` keyed by symbol. It uses `sync.RWMut
 ### Binance Adapter
 
 The Binance adapter is responsible for fetching data from Binance and converting it to domain types. Conversion happens at the adapter boundary so core never sees exchange-specific formats.
+
+
+
+
+
+## Pipeline, interface and Fan-in design for Exchanges and wireup with dummy exchnage
+
+### Pipeline
+
+pipeline is responsible for get updates from different exchanges and merge into one 
+
+### Fan-in design 
+
+pipeline follows fan-in design  for get updates from different exchanges through channels. for each exchange it carries data using a channel and merge into a one channel and that channel have updates from each exchange 
+
+### dummy exchange
+
+developed a dummy exchange which mimics real exchanges behaviour to help with design in order to wire things up 
+
+### interface design 
+
+pipeline is the consumer of the exchanges . so Exchanger interface defined at pipeline and that interface has two methods, Run() and name() functions which every exchange should satisfy 
+
+

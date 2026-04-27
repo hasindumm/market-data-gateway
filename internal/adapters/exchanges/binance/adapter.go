@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"market-data-gateway/internal/domain"
 	"net/http"
-	"strconv"
 )
 
 func FetchSnapshot(ctx context.Context, symbol string) (domain.OrderBook, error) {
@@ -53,14 +52,8 @@ type binanceDepthResponse struct {
 func parseLevels(raw [][]string) ([]domain.Level, error) {
 	levels := make([]domain.Level, 0, len(raw))
 	for _, item := range raw {
-		price, err := strconv.ParseFloat(item[0], 64)
-		if err != nil {
-			return nil, fmt.Errorf("parse price: %w", err)
-		}
-		qty, err := strconv.ParseFloat(item[1], 64)
-		if err != nil {
-			return nil, fmt.Errorf("parse quantity: %w", err)
-		}
+		price:=item[0]
+		qty:=item[1]
 		levels = append(levels, domain.Level{Price: price, Quantity: qty})
 	}
 	return levels, nil
