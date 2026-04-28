@@ -28,21 +28,29 @@ func (a *Adapter) Run(ctx context.Context) (<-chan domain.Update, error) {
 		defer close(out)
 		ticker := time.NewTicker(500 * time.Millisecond)
 		defer ticker.Stop()
+		first := true
 		for {
 			select {
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
 				// TODO: emit
-				update := domain.Update{
-					UpdateType: "delta",
-					Symbol:     a.symbols[0],
-					Bids:       []domain.Level{{Price: "50000.00", Quantity: "1.5"}},
-					Asks:       []domain.Level{{Price: "50001.00", Quantity: "2.0"}},
+				u := domain.Update{
+					Exchange:  a.name,
+					Symbol:    a.symbols[0],
+					Bids:      []domain.Level{{Price: "50000.00", Quantity: "1.5"}},
+					Asks:      []domain.Level{{Price: "50001.00", Quantity: "2.0"}},
+					Timestamp: time.Now(),
+				}
+				if first {
+					u.Type = domain.UpdateTypeSnapshot
+					first = false
+				} else {
+					u.Type = domain.UpdateTypeDelta
 				}
 
 				select {
-				case out <- update:
+				case out <- u:
 				case <-ctx.Done():
 					return
 				}

@@ -124,3 +124,34 @@ test wiring up at the main
 
 **Next:**
 - implement solid way to apply changes flows through the merge channel to store 
+
+
+## 2026-04-28 — Store refactor, domain refactor, pipeline wiring, WebSocket manager refactor
+
+**Goal:**
+Implement a solid store that applies order book changes from the merged channel.
+Refactor domain types to support the full update lifecycle.
+Wire the pipeline correctly so merged channel data flows into the store and broadcasts to clients.
+Refactor WebSocket client and manager to match the broadcast design.
+
+**What worked:**
+- Store now correctly applies snapshots and deltas from the merged channel
+- Each WebSocket client has its own buffered channel, writeMessage go routine reads from it and writes to socket
+- SnapshotAll atomically returns current book state and registers client for future broadcasts
+- Pipeline now correctly feeds merged channel into store 
+- Domain types refactored — Update and Level now have proper fields and JSON tags to match wire format
+- WebSocket manager refactored — on connect sends snapshots directly then handover  updated writing to writeMessage
+
+**What broke (and why):**
+- Binance adapter commented out temporarily — adapter design needs to be validated against solid store and pipeline before wiring back in
+
+**Concept unlocked:**
+- Single-writer pattern :  one goroutine owns all mutations, eliminates races by design
+- Non-blocking broadcast with per-client channels :  decouples store write speed from socket write speed
+- Two paths for snapshot delivery :  initial snapshots go directly to socket on connect, future snapshots flow through client channel via broadcast from store
+
+**Still fuzzy:**
+- still bit confusing about design inside binance adapter (since per symbol need seperate ws connection)
+
+**Next:**
+- Plug Binance adapter back in and validate end to end with real exchange data and refactor design more with any identified changes with development

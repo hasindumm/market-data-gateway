@@ -72,9 +72,6 @@ func (p *Pipeline) Run(ctx context.Context) error {
 		close(merged)
 	}()
 
-	// for u := range merged {
-	// 	p.store.Apply(u)
-	// }
-
+	p.store.Run(ctx, merged)
 	return nil
 }

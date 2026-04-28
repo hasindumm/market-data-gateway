@@ -1,7 +1,9 @@
 package wshandler
 
 import (
+	"context"
 	"log"
+	"market-data-gateway/internal/core"
 	"net/http"
 	"sync"
 
@@ -15,57 +17,61 @@ var (
 	}
 )
 
-type manager struct {
-	clients map[*client]bool
+type Manager struct {
+	store   *core.Store
+	clients map[*client]struct{}
 	sync.RWMutex
 	wg sync.WaitGroup
+	mu sync.Mutex
 }
 
-func NewManager() *manager {
-	return &manager{
-		clients: make(map[*client]bool),
+func NewManager(store *core.Store) *Manager {
+	return &Manager{
+		store:   store,
+		clients: make(map[*client]struct{}),
 	}
 }
 
-func (m *manager) ServeWS(w http.ResponseWriter, r *http.Request) {
+func (m *Manager) ServeWS(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 
 	conn, err := websocketUpgrader.Upgrade(w, r, nil)
 	if err != nil {
-		 log.Printf("serveWS: failed to upgrade connection: %v", err)
+		log.Printf("serveWS: failed to upgrade connection: %v", err)
 		return
 	}
 
-	client := newClient(conn, m)
-	m.addClient(client)
+	for _, snap := range m.store.SnapshotAll() {
+		if err := conn.WriteJSON(snap); err != nil {
+			log.Printf("wsserver: initial snapshot: %v", err)
+			conn.Close()
+			return
+		}
+	}
+
+	c := newClient(conn, m)
+	m.store.Subscribe(c.send)
+	m.mu.Lock()
+	m.clients[c] = struct{}{}
+	m.mu.Unlock()
 
 	m.wg.Add(1)
-	go func(){
+	go func() {
 		defer m.wg.Done()
-		client.readMessage()
+		c.readMessage()
 	}()
-	go client.writeMessage()
+	go c.writeMessage(ctx)
 
 }
 
-func (m *manager) addClient(c *client) {
-	m.Lock()
-	defer m.Unlock()
-	m.clients[c] = true
+func (m *Manager) removeClient(c *client) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	delete(m.clients, c)
 }
 
-func (m *manager) removeClient(c *client) {
+func (m *Manager) Shutdown() {
 	m.Lock()
-	defer m.Unlock()
-	if _, ok := m.clients[c]; ok {
-		close(c.send)
-		c.conn.Close()
-		delete(m.clients, c)
-	}
-}
-
-func (m *manager) Shutdown(){
-	m.Lock()
-	for client := range m.clients{
+	for client := range m.clients {
 		client.conn.Close()
 	}
 	m.Unlock()
@@ -73,7 +79,6 @@ func (m *manager) Shutdown(){
 }
 
 //Without WaitGroup:
-
 
 // 10 clients connected, all chatting
 
@@ -90,7 +95,6 @@ func (m *manager) Shutdown(){
 // send channels never closed
 // some conns never properly closed
 // OS forcefully kills everything mid-cleanup
-
 
 //With WaitGroup:
 

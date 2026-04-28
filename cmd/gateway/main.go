@@ -36,10 +36,13 @@ func main() {
 		}
 	}()
 
-	manager := wshandler.NewManager()
-	http.HandleFunc("/ws", manager.ServeWS)
+	manager := wshandler.NewManager(store)
+		mux := http.NewServeMux()
+		mux.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
+			manager.ServeWS(ctx, w, r)
+		})
 
-	server := &http.Server{Addr: ":8080"}
+	server := &http.Server{Addr: ":8080", Handler: mux}
 	go func() {
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Printf("main: server error: %v", err)

@@ -111,3 +111,32 @@ developed a dummy exchange which mimics real exchanges behaviour to help with de
 pipeline is the consumer of the exchanges . so Exchanger interface defined at pipeline and that interface has two methods, Run() and name() functions which every exchange should satisfy 
 
 
+
+## Store, Order Book State and Broadcast to WebSocket Clients
+
+### Store and Order Book State
+
+Store is the single writer of order book. It get data through merged channel from the pipeline and applies every incoming update to an in-memory data structure keyed by (exchange, symbol) pair.
+
+Two types of updates flow through the merged channel:
+
+- **Snapshot** — replaces the entire order book for that (exchange, symbol). This happens when an adapter first connects or reconnects.
+- **Delta** — update the existing order book.
+
+### Apply
+
+The Apply method is the only place in the system that touch the order book state. This single writer design avoids data races by construction — no locks are needed on the book .because only one goroutine ever writes to it.
+
+### Broadcast to WebSocket Clients
+
+After every Apply, the store broadcasts the incoming update to all registered subscribers. Each connected WebSocket client registers a channel with the store when it connects. The store holds a subscribers map of these channels.
+
+Broadcast loops through the subscribers map and sends the update to each channel . 
+
+### Per-client Channel
+
+Each WebSocket client owns a  channel. The store writes to it via broadcast. The client's writeMessage goroutine reads from this channel and writes to the WebSocket connection.
+
+### Snapshot on Connect
+
+When a new client connects, the WS manager calls SnapshotAll on the store. This atomically returns the current state of all order books and registers the client's channel for future broadcasts. The manager writes the snapshots directly to the socket, then the client's writeMessage takes over for all incoming updates. This guarantees no updates are missed between the initial snapshot and the start of live streaming.

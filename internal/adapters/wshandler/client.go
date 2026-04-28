@@ -1,27 +1,32 @@
 package wshandler
 
 import (
+	"context"
 	"log"
+	"market-data-gateway/internal/domain"
+	"sync"
 
 	"github.com/gorilla/websocket"
 )
 
 type client struct {
 	conn    *websocket.Conn
-	manager *manager
-	send    chan []byte
+	manager *Manager
+	send chan domain.Update
+	writeMu sync.Mutex
 }
 
-func newClient(conn *websocket.Conn, manager *manager) *client {
+func newClient(conn *websocket.Conn, manager *Manager) *client {
 	return &client{
 		conn:    conn,
 		manager: manager,
-		send:    make(chan []byte, 256), // buffer size get to a const and
+		send:   make(chan domain.Update, 64), // buffer size get to a const and
 		//Binance + Kraken send roughly 10-50 updates/second per symbol
 		//If you have 2 symbols, that's ~100 updates/second max
 		//buffer = max producer burst rate × acceptable lag time.
 	}
 }
+
 
 func (c *client) readMessage() {
 
@@ -40,21 +45,28 @@ func (c *client) readMessage() {
 		log.Println("MessageType: ", mt)
 		log.Println("Payload: ", string(payload))
 
-		// just for testing
-		for client := range c.manager.clients {
-			client.send <- payload
-		}
+		
 	}
 
 }
 
-func (c *client) writeMessage() {
+func (c *client) writeJSON(v interface{}) error {
+	c.writeMu.Lock()
+	defer c.writeMu.Unlock()
+	return c.conn.WriteJSON(v)
+}
 
-	for msg := range c.send {
-		if err := c.conn.WriteMessage(websocket.TextMessage, msg); err != nil {
-			log.Printf("writeMessage: failed to write: %v", err) 
-			c.conn.Close()
+
+func (c *client) writeMessage(ctx context.Context) {
+
+	for {
+		select {
+		case <-ctx.Done():
 			return
+		case u := <-c.send:
+			if err := c.writeJSON(u); err != nil {
+				return
+			}
 		}
 	}
 }
