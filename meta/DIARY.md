@@ -155,3 +155,26 @@ Refactor WebSocket client and manager to match the broadcast design.
 
 **Next:**
 - Plug Binance adapter back in and validate end to end with real exchange data and refactor design more with any identified changes with development
+
+
+## 2026-04-29 — Binance adapter integration and testing
+
+**Goal:**
+Integrate the Binance adapter into the app and test the full end to end flow.
+
+**What worked:**
+- Binance adapter wired up and running end to end
+- Data flows from Binance all the way through to the WebSocket client
+- Full pipeline confirmed working  exchange to merged channel to store to broadcast to client
+
+**What broke (and why):**
+- used wrong design for drain and buffer the updates from binace. ended up with never ending for loop.
+**Concept unlocked:**
+-  Used a separate goroutine for buffering incoming messages and sent a signal after the snapshot was received. this helps app to flow with non blocking operation (app will not hand in for loops). having forever running for loops in main thread is blocking. should carefully handle that kind of scenarios
+
+**Still fuzzy:**
+- should app validate the configs we enter (ex: BTCUSDT is the valid symbol for API , if we enter wrong symbol for it API will return 400.)
+- should we keep valid symbols with us and validate against it or its users resposibililty to enter valid symbols 
+
+**Next:**
+- Kraken adapter integration

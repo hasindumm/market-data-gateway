@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"log"
-	"market-data-gateway/internal/adapters/exchanges/fake"
+	"market-data-gateway/internal/adapters/exchanges/binance"
 	"market-data-gateway/internal/adapters/wshandler"
 	"market-data-gateway/internal/core"
 	"net/http"
@@ -22,10 +22,12 @@ func main() {
 
 	store := core.NewStore()
 
-	fakeexchange1 := fake.NewAdapter("abc", []string{"btc"})
-	fakeexchange2 := fake.NewAdapter("xyz", []string{"eth"})
+	// fakeexchange1 := fake.NewAdapter("abc", []string{"btc"})
+	// fakeexchange2 := fake.NewAdapter("xyz", []string{"eth"})
 
-	exchangers := []core.Exchanger{fakeexchange1, fakeexchange2}
+	binance := binance.NewAdapter([]string{"BTCUSDT", "ETHUSDT"})
+
+	exchangers := []core.Exchanger{binance}
 
 	pipeline := core.NewPipeline(exchangers, store)
 	wg.Add(1)
@@ -37,10 +39,10 @@ func main() {
 	}()
 
 	manager := wshandler.NewManager(store)
-		mux := http.NewServeMux()
-		mux.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
-			manager.ServeWS(ctx, w, r)
-		})
+	mux := http.NewServeMux()
+	mux.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
+		manager.ServeWS(ctx, w, r)
+	})
 
 	server := &http.Server{Addr: ":8080", Handler: mux}
 	go func() {
@@ -49,12 +51,10 @@ func main() {
 		}
 	}()
 
-	
-
 	<-ctx.Done()
 	if err := server.Shutdown(context.Background()); err != nil {
 		log.Printf("main: server shutdown error: %v", err)
 	}
-	wg.Wait() 
+	wg.Wait()
 	manager.Shutdown()
 }
