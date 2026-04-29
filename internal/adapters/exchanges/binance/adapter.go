@@ -1,60 +1,67 @@
 package binance
 
-// import (
-// 	"context"
-// 	"encoding/json"
-// 	"fmt"
-// 	"market-data-gateway/internal/domain"
-// 	"net/http"
-// )
+import (
+	"context"
+	"market-data-gateway/internal/domain"
+	"sync"
+)
 
-// func FetchSnapshot(ctx context.Context, symbol string) (domain.OrderBook, error) {
+type Adapter struct {
+	symbols []string
+	mu      sync.Mutex
+	workers map[string]*symbolWorker
+}
 
-// 	url := "https://api.binance.com/api/v3/depth?symbol=" + symbol
+func NewAdapter(symbols []string) *Adapter {
+	return &Adapter{
+		symbols: symbols,
+		workers: make(map[string]*symbolWorker),
+	}
+}
 
-// 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-// 	if err != nil {
-// 		return domain.OrderBook{}, fmt.Errorf("binance: create request: %w", err)
-// 	}
-// 	resp, err := http.DefaultClient.Do(req)
-// 	if err != nil {
-// 		return domain.OrderBook{}, fmt.Errorf("binance: fetching snapshot failed: %w", err)
-// 	}
-// 	defer resp.Body.Close()
+func (a *Adapter) Name() string { return "binance" }
 
-// 	var binanceResp binanceDepthResponse
-// 	if err := json.NewDecoder(resp.Body).Decode(&binanceResp); err != nil {
-// 		return domain.OrderBook{}, fmt.Errorf("binance: fetching snapshot: response decode failed: %w", err)
-// 	}
+func (a *Adapter) Run(ctx context.Context) (<-chan domain.Update, error) {
+	perSym := make([]<-chan domain.Update, 0, len(a.symbols))
 
-// 	bids, err := parseLevels(binanceResp.Bids)
-// 	if err != nil {
-// 		return domain.OrderBook{}, fmt.Errorf("binance: parse bids: %w", err)
-// 	}
-// 	asks, err := parseLevels(binanceResp.Asks)
-// 	if err != nil {
-// 		return domain.OrderBook{}, fmt.Errorf("binance: parse asks: %w", err)
-// 	}
+	a.mu.Lock()
+	for _, sym := range a.symbols {
+		w := newSymbolWorker(sym)
+		a.workers[sym] = w
+		perSym = append(perSym, w.run(ctx))
+	}
+	a.mu.Unlock()
 
-// 	return domain.OrderBook{
-// 		Symbol: symbol,
-// 		Bids:   bids,
-// 		Asks:   asks,
-// 	}, nil
+	out := make(chan domain.Update, len(a.symbols))
 
-// }
+	var wg sync.WaitGroup
+	wg.Add(len(perSym))
+	for _, src := range perSym {
+		go func(ch <-chan domain.Update) {
+			defer wg.Done()
+			for {
+				select {
+				case u, ok := <-ch:
+					if !ok {
+						return
+					}
+					select {
+					case out <- u:
+					case <-ctx.Done():
+						return
+					}
+				case <-ctx.Done():
+					return
+				}
+			}
+		}(src)
+	}
 
-// type binanceDepthResponse struct {
-// 	Bids [][]string `json:"bids"`
-// 	Asks [][]string `json:"asks"`
-// }
+	go func() {
+		wg.Wait()
+		close(out)
+	}()
 
-// func parseLevels(raw [][]string) ([]domain.Level, error) {
-// 	levels := make([]domain.Level, 0, len(raw))
-// 	for _, item := range raw {
-// 		price:=item[0]
-// 		qty:=item[1]
-// 		levels = append(levels, domain.Level{Price: price, Quantity: qty})
-// 	}
-// 	return levels, nil
-// }
+	// return channel that have all symbols update mergerd (fan-in)
+	return out, nil
+}
