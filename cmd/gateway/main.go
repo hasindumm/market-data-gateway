@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"market-data-gateway/internal/adapters/exchanges/binance"
+	"market-data-gateway/internal/adapters/exchanges/kraken"
 	"market-data-gateway/internal/adapters/wshandler"
 	"market-data-gateway/internal/core"
 	"net/http"
@@ -26,8 +27,9 @@ func main() {
 	// fakeexchange2 := fake.NewAdapter("xyz", []string{"eth"})
 
 	binance := binance.NewAdapter([]string{"BTCUSDT", "ETHUSDT"})
+	kraken := kraken.NewAdapter([]string{"BTC/USD", "ETH/USD"})
 
-	exchangers := []core.Exchanger{binance}
+	exchangers := []core.Exchanger{kraken,binance}
 
 	pipeline := core.NewPipeline(exchangers, store)
 	wg.Add(1)
