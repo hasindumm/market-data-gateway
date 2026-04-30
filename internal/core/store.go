@@ -15,7 +15,7 @@ type bookKey struct {
 }
 
 type book struct {
-	bids map[string]string // price → quantity
+	bids map[string]string
 	asks map[string]string
 }
 
@@ -111,6 +111,19 @@ func (s *Store) SnapshotAll() []domain.Update {
 	snaps := make([]domain.Update, 0, len(s.books))
 	for key, b := range s.books {
 		snaps = append(snaps, buildSnapshot(key.Exchange, key.Symbol, b))
+	}
+	return snaps
+}
+
+// returns one snapshot per given symbol 
+func (s *Store) SnapshotsForSymbol(symbol string) []domain.Update {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	var snaps []domain.Update
+	for key, b := range s.books {
+		if key.Symbol == symbol {
+			snaps = append(snaps, buildSnapshot(key.Exchange, key.Symbol, b))
+		}
 	}
 	return snaps
 }

@@ -178,3 +178,24 @@ Integrate the Binance adapter into the app and test the full end to end flow.
 
 **Next:**
 - Kraken adapter integration
+
+## 2026-04-30 — kraken adapter integration and subscribe to symbols by client development 
+
+**Goal:**
+Integrate the kraken adapter into the app and subscribe to symbols by client development 
+
+**What worked:**
+- kraken adapter wired up and running end to end
+- Data flows from kraken all the way through to the WebSocket client
+- subribing to symbols works properly 
+
+**What broke (and why):**
+- - WaitGroup panic on client disconnect , m.wg.Add(1) was called but two goroutines (readMessage and writeMessage) were both calling defer m.wg.Done(). When both pumps exited the counter went negative and panicked. Fixed by changing to m.wg.Add(2) to match the two Done calls.
+**Concept unlocked:**
+- sync.Once  makes sure a function runs only one time, even if many goroutines call it. Good for cleanup code that can be called from more than one place (like both read/write message running cleanup on exit) so we don't crash by closing the same channel twice.
+
+**Still fuzzy:**
+- Symbol naming across exchanges , right now if a client wants all BTC updates they have to subscribe to both BTCUSDT and BTC/USD because each exchange uses a different name for the same coin. Not sure whether to convert these to one common name inside the adapters or leave it as it is and just write down the limitation.
+
+**Next:**
+- implementation of the CLI tool with CLI commands to view or rebuild the current order book state
