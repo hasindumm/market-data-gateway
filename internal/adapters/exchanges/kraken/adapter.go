@@ -15,11 +15,13 @@ const wsURL = "wss://ws.kraken.com/v2"
 
 type Adapter struct {
 	symbols []string
+	depth int
 }
 
-func NewAdapter(symbols []string) *Adapter {
+func NewAdapter(symbols []string, depth int) *Adapter {
 	return &Adapter{
 		symbols: symbols,
+		depth: depth,
 	}
 }
 
@@ -69,7 +71,7 @@ func (a *Adapter) connect(ctx context.Context, out chan<- domain.Update) error {
 		Params: subscribeParams{
 			Channel: "book",
 			Symbol:  a.symbols,
-			Depth:   10,
+			Depth:   a.depth,
 		},
 	}
 	if err := conn.WriteJSON(sub); err != nil {

@@ -2,10 +2,12 @@ package main
 
 import (
 	"context"
+	"flag"
 	"log"
 	"market-data-gateway/internal/adapters/exchanges/binance"
 	"market-data-gateway/internal/adapters/exchanges/kraken"
 	"market-data-gateway/internal/adapters/wshandler"
+	"market-data-gateway/internal/config"
 	"market-data-gateway/internal/core"
 	"net/http"
 	"os"
@@ -16,22 +18,31 @@ import (
 
 func main() {
 
-	var wg sync.WaitGroup
+	configPath := flag.String("config", "config.json", "path to config file")
+	flag.Parse()
+
+	cfg := config.MustLoad(*configPath)
+
+	var exchangers []core.Exchanger
+	if ec, ok := cfg.Exchanges["binance"]; ok && len(ec.Symbols) > 0 {
+		exchangers = append(exchangers, binance.NewAdapter(ec.Symbols, ec.Depth))
+	}
+	if ec, ok := cfg.Exchanges["kraken"]; ok && len(ec.Symbols) > 0 {
+		exchangers = append(exchangers, kraken.NewAdapter(ec.Symbols, ec.Depth))
+	}
+	if len(exchangers) == 0 {
+		log.Fatal("main: no exchanges configured")
+	}
+
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 
 	defer cancel()
 
 	store := core.NewStore()
 
-	// fakeexchange1 := fake.NewAdapter("abc", []string{"btc"})
-	// fakeexchange2 := fake.NewAdapter("xyz", []string{"eth"})
-
-	binance := binance.NewAdapter([]string{"BTCUSDT", "ETHUSDT"})
-	kraken := kraken.NewAdapter([]string{"BTC/USD", "ETH/USD"})
-
-	exchangers := []core.Exchanger{kraken,binance}
-
 	pipeline := core.NewPipeline(exchangers, store)
+
+	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
 		defer wg.Done()

@@ -8,13 +8,15 @@ import (
 
 type Adapter struct {
 	symbols []string
+	depth   int
 	mu      sync.Mutex
 	workers map[string]*symbolWorker
 }
 
-func NewAdapter(symbols []string) *Adapter {
+func NewAdapter(symbols []string, depth int) *Adapter {
 	return &Adapter{
 		symbols: symbols,
+		depth:   depth,
 		workers: make(map[string]*symbolWorker),
 	}
 }
@@ -26,7 +28,7 @@ func (a *Adapter) Run(ctx context.Context) (<-chan domain.Update, error) {
 
 	a.mu.Lock()
 	for _, sym := range a.symbols {
-		w := newSymbolWorker(sym)
+		w := newSymbolWorker(sym, a.depth)
 		a.workers[sym] = w
 		perSym = append(perSym, w.run(ctx))
 	}

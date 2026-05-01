@@ -23,6 +23,7 @@ const (
 
 type symbolWorker struct {
 	symbol string
+	depth  int
 }
 
 type depthEvent struct {
@@ -41,9 +42,10 @@ type depthSnapshot struct {
 	Asks         [][]string `json:"asks"`
 }
 
-func newSymbolWorker(symbol string) *symbolWorker {
+func newSymbolWorker(symbol string, depth int) *symbolWorker {
 	return &symbolWorker{
 		symbol: symbol,
+		depth:  depth,
 	}
 }
 
@@ -232,7 +234,7 @@ func (w *symbolWorker) fetchSnapshot(ctx context.Context) (*depthSnapshot, error
 	reqCtx, cancel := context.WithTimeout(ctx, restTimeout)
 	defer cancel()
 
-	url := fmt.Sprintf("%s?symbol=%s&limit=1000", restBase, w.symbol)
+	url := fmt.Sprintf("%s?symbol=%s&limit=%d", restBase, w.symbol, w.depth)
 	req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err

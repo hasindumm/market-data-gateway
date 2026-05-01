@@ -1,0 +1,16 @@
+{
+  "server": {
+    "port": 8080,
+    "admin_port": 9090
+  },
+  "exchanges": {
+    "binance": {
+      "symbols": ["BTCUSDT", "ETHUSDT"],
+      "depth": 20
+    },
+    "kraken": {
+      "symbols": ["BTC/USD", "ETH/USD"],
+      "depth": 25
+    }
+  }
+}
