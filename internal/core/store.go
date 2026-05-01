@@ -115,7 +115,7 @@ func (s *Store) SnapshotAll() []domain.Update {
 	return snaps
 }
 
-// returns one snapshot per given symbol 
+// returns one snapshot per given symbol
 func (s *Store) SnapshotsForSymbol(symbol string) []domain.Update {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -126,6 +126,25 @@ func (s *Store) SnapshotsForSymbol(symbol string) []domain.Update {
 		}
 	}
 	return snaps
+}
+
+// Snapshot per a perticular exchange and symbol at the moment
+func (s *Store) Snapshot(exchange, symbol string) domain.Update {
+	key := bookKey{Exchange: exchange, Symbol: symbol}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	b, ok := s.books[key]
+	if !ok {
+		return domain.Update{
+			Type:      domain.UpdateTypeSnapshot,
+			Exchange:  exchange,
+			Symbol:    symbol,
+			Bids:      []domain.Level{},
+			Asks:      []domain.Level{},
+			Timestamp: time.Now(),
+		}
+	}
+	return buildSnapshot(exchange, symbol, b)
 }
 
 func buildSnapshot(exchange, symbol string, b *book) domain.Update {

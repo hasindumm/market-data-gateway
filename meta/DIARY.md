@@ -199,3 +199,33 @@ Integrate the kraken adapter into the app and subscribe to symbols by client dev
 
 **Next:**
 - implementation of the CLI tool with CLI commands to view or rebuild the current order book state
+
+
+
+## 2026-05-01 — CLI tool and gateway configuration
+
+**Goal:**
+Implement CLI commands to view current order book state,
+and drive all gateway configuration from a single config.json file.
+
+**What worked:**
+- book command fetches and prints the current order book for a given exchange and symbol
+- Admin server wired up with /admin/book  endpoint
+- All configuration centralised into config.json
+
+**What broke (and why):**
+- Kraken 1006 abnormal closure on connect — depth was set to 20 which is not a valid
+  Kraken v2 depth value. Kraken rejected the subscription silently and closed the
+  connection. Fixed by changing Kraken depth to 25 in config.json.
+
+**Concept unlocked:**
+- Config loading in Go, os.Open opens the file, json.NewDecoder(f).Decode(&cfg) streams JSON directly into
+  a struct. 
+
+**Still fuzzy:**
+- Why Kraken only accepts specific depth values (10, 25, 100, 500, 1000) while Binance
+  accepts any value. Not sure if this is a technical limitation on Kraken's side or just
+  an API design choice.
+
+**Next:**
+- refactor if there is any code smells or design improvemt/logging 

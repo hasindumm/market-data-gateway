@@ -140,3 +140,23 @@ Each WebSocket client owns a  channel. The store writes to it via broadcast. The
 ### Snapshot on Connect
 
 When a new client connects, the WS manager calls SnapshotAll on the store. This atomically returns the current state of all order books and registers the client's channel for future broadcasts. The manager writes the snapshots directly to the socket, then the client's writeMessage takes over for all incoming updates. This guarantees no updates are missed between the initial snapshot and the start of live streaming.
+
+
+
+## Admin Server and CLI
+
+### Admin Server
+
+The admin server is a internal HTTP server that runs with the gateway on a separate port. It exposes an endpoint for get the current order book state.
+The server holds a reference to the store . The store gives it read access to current order book state.
+
+the endpoint exposed:
+
+- GET /admin/book?exchange=binance&symbol=BTCUSDT — returns the current order book snapshot for a given exchange and symbol as JSON.
+
+
+The admin server runs in its own goroutine so it never blocks the main WebSocket server. It binds to the admin_port defined in config.json.
+
+### CLI
+
+The CLI is a separate process that talks to the running gateway via the admin server HTTP endpoints. It is built into the same binary as the gateway.

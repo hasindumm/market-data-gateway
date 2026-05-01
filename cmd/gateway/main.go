@@ -3,10 +3,13 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"log"
+	"market-data-gateway/internal/adapters/adminserver"
 	"market-data-gateway/internal/adapters/exchanges/binance"
 	"market-data-gateway/internal/adapters/exchanges/kraken"
 	"market-data-gateway/internal/adapters/wshandler"
+	"market-data-gateway/internal/cli"
 	"market-data-gateway/internal/config"
 	"market-data-gateway/internal/core"
 	"net/http"
@@ -17,6 +20,14 @@ import (
 )
 
 func main() {
+
+	if len(os.Args) > 1 {
+		switch os.Args[1] {
+		case "book":
+			cli.RunBook(os.Args[2:])
+			return
+		}
+	}
 
 	configPath := flag.String("config", "config.json", "path to config file")
 	flag.Parse()
@@ -51,13 +62,22 @@ func main() {
 		}
 	}()
 
+	adminAddr := fmt.Sprintf(":%d", cfg.Server.AdminPort)
+	adminSrv := adminserver.NewAdminServer(store)
+	go func() {
+		if err := adminSrv.ListenAndServe(adminAddr); err != nil && err != http.ErrServerClosed {
+			log.Printf("admin: %v", err)
+		}
+	}()
+
 	manager := wshandler.NewManager(store)
 	mux := http.NewServeMux()
 	mux.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
 		manager.ServeWS(ctx, w, r)
 	})
 
-	server := &http.Server{Addr: ":8080", Handler: mux}
+	wsAddr := fmt.Sprintf(":%d", cfg.Server.Port)
+	server := &http.Server{Addr: wsAddr, Handler: mux}
 	go func() {
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Printf("main: server error: %v", err)
@@ -65,9 +85,12 @@ func main() {
 	}()
 
 	<-ctx.Done()
+	log.Println("main: shutting down")
+
 	if err := server.Shutdown(context.Background()); err != nil {
 		log.Printf("main: server shutdown error: %v", err)
 	}
 	wg.Wait()
 	manager.Shutdown()
+	log.Println("main: done")
 }

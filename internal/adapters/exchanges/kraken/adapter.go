@@ -4,24 +4,24 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/gorilla/websocket"
 	"log"
 	"market-data-gateway/internal/domain"
 	"strconv"
 	"time"
-	"github.com/gorilla/websocket"
 )
 
 const wsURL = "wss://ws.kraken.com/v2"
 
 type Adapter struct {
 	symbols []string
-	depth int
+	depth   int
 }
 
 func NewAdapter(symbols []string, depth int) *Adapter {
 	return &Adapter{
 		symbols: symbols,
-		depth: depth,
+		depth:   depth,
 	}
 }
 
