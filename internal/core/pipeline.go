@@ -24,7 +24,7 @@ func NewPipeline(exchanges []Exchanger, store *Store) *Pipeline {
 	}
 }
 
-// this will create array of receive channel that lenth of number of exchanged
+// Run will create array of receive channel that lenth of number of exchanged
 // then it will loop and run those exchanges and will get update channels and fill the array of recieve channels
 // then create a merged channel where all exchange spesific channels get merged
 // then loop the array of recevive channel and start go routine for every exchnage spsesific channel
@@ -49,24 +49,11 @@ func (p *Pipeline) Run(ctx context.Context) error {
 	for _, src := range sources {
 		go func() {
 			defer wg.Done()
-			for {
-				select {
-				case u, ok := <-src:
-					if !ok {
-						return
-					}
-					select {
-					case merged <- u:
-					case <-ctx.Done():
-						return
-					}
-				case <-ctx.Done():
-					return
-				}
+			for u := range src {
+				merged <- u
 			}
 		}()
 	}
-
 	go func() {
 		wg.Wait()
 		close(merged)

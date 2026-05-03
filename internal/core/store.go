@@ -34,18 +34,10 @@ func NewStore() *Store {
 }
 
 func (s *Store) Run(ctx context.Context, in <-chan domain.Update) {
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case u, ok := <-in:
-			if !ok {
-				return
-			}
-			s.apply(u)
-			s.broadcast(u)
-		}
-	}
+    for u := range in {
+        s.apply(u)
+        s.broadcast(u)
+    }
 }
 
 func (s *Store) apply(u domain.Update) {

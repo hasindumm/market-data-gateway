@@ -90,7 +90,8 @@ func main() {
 	if err := server.Shutdown(context.Background()); err != nil {
 		log.Printf("main: server shutdown error: %v", err)
 	}
-	wg.Wait()
+	
 	manager.Shutdown()
+	wg.Wait()
 	log.Println("main: done")
 }

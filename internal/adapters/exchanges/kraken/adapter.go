@@ -66,6 +66,16 @@ func (a *Adapter) connect(ctx context.Context, out chan<- domain.Update) error {
 	}
 	defer conn.Close()
 
+	stop := make(chan struct{})
+	defer close(stop)
+	go func() {
+		select {
+		case <-ctx.Done():
+			conn.Close()
+		case <-stop:
+		}
+	}()
+
 	sub := subscribeMsg{
 		Method: "subscribe",
 		Params: subscribeParams{
