@@ -154,7 +154,7 @@ func (w *symbolWorker) sync(ctx context.Context, out chan<- domain.Update) error
 	buffered := <-bufferedCh
 
 	// remove events from buffer if those are older than snapshot
-	kept := buffered[:0]
+	var kept []depthEvent
 	for _, ev := range buffered {
 		if ev.FinalUpdateID > lastID {
 			kept = append(kept, ev)
