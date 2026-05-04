@@ -12,26 +12,26 @@ import (
 
 var (
 	websocketUpgrader = websocket.Upgrader{
-		ReadBufferSize:  1024,
-		WriteBufferSize: 1024,
+		ReadBufferSize:  1024, // ReadBufferSize 1024: client messages are small (subscription requests, pings)
+		WriteBufferSize: 4096, // WriteBufferSize 4096: order book snapshots with 10-20 price levels serialize
 	}
 )
 
-type Manager struct {
+type manager struct {
 	store   *core.Store
 	clients map[*client]struct{}
 	wg      sync.WaitGroup
 	mu      sync.Mutex
 }
 
-func NewManager(store *core.Store) *Manager {
-	return &Manager{
+func NewManager(store *core.Store) *manager {
+	return &manager{
 		store:   store,
 		clients: make(map[*client]struct{}),
 	}
 }
 
-func (m *Manager) ServeWS(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+func (m *manager) ServeWS(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 
 	conn, err := websocketUpgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -65,14 +65,15 @@ func (m *Manager) ServeWS(ctx context.Context, w http.ResponseWriter, r *http.Re
 
 }
 
-func (m *Manager) removeClient(c *client) {
+func (m *manager) removeClient(c *client) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	delete(m.clients, c)
 }
 
-func (m *Manager) Shutdown() {
+func (m *manager) Shutdown() {
 	m.mu.Lock()
+	// Clients are copied under lock to avoid deadlock since cleanup calls removeClient which also locks mu.
 	clients := make([]*client, 0, len(m.clients))
 	for c := range m.clients {
 		clients = append(clients, c)

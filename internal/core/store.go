@@ -1,7 +1,6 @@
 package core
 
 import (
-	"context"
 	"market-data-gateway/internal/domain"
 	"sort"
 	"strconv"
@@ -33,11 +32,11 @@ func NewStore() *Store {
 	}
 }
 
-func (s *Store) Run(ctx context.Context, in <-chan domain.Update) {
-    for u := range in {
-        s.apply(u)
-        s.broadcast(u)
-    }
+func (s *Store) run(in <-chan domain.Update) {
+	for u := range in {
+		s.apply(u)
+		s.broadcast(u)
+	}
 }
 
 func (s *Store) apply(u domain.Update) {

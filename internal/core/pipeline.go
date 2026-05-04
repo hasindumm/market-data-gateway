@@ -7,18 +7,20 @@ import (
 	"sync"
 )
 
+const exchangeChanBuffer = 512
+
 type Exchanger interface {
 	Run(ctx context.Context) (<-chan domain.Update, error)
 	Name() string
 }
 
-type Pipeline struct {
+type pipeline struct {
 	exchanges []Exchanger
 	store     *Store
 }
 
-func NewPipeline(exchanges []Exchanger, store *Store) *Pipeline {
-	return &Pipeline{
+func NewPipeline(exchanges []Exchanger, store *Store) *pipeline {
+	return &pipeline{
 		exchanges: exchanges,
 		store:     store,
 	}
@@ -30,7 +32,7 @@ func NewPipeline(exchanges []Exchanger, store *Store) *Pipeline {
 // then loop the array of recevive channel and start go routine for every exchnage spsesific channel
 // when something came over a channel get that and put into mergerd channel
 // finally when something showed up in merged channel apply it to center store
-func (p *Pipeline) Run(ctx context.Context) error {
+func (p *pipeline) Run(ctx context.Context) error {
 	sources := make([]<-chan domain.Update, 0, len(p.exchanges))
 
 	for _, exc := range p.exchanges {
@@ -40,9 +42,9 @@ func (p *Pipeline) Run(ctx context.Context) error {
 		}
 		sources = append(sources, updateChan)
 	}
-	// channel buffer size 64: at peak combined rate (~50 updates/sec from Binance + Kraken)
-	// this absorbs ~1 second of consumer lag before backpressuring forwarders.
-	merged := make(chan domain.Update, 64)
+	// buffer 512: sized to exceed combined adapter throughput
+	// each binance adapter  buffers len(symbols)*64, and kraken buffers 128 this covers fan-in of all adapters
+	merged := make(chan domain.Update, exchangeChanBuffer)
 	var wg sync.WaitGroup
 	wg.Add(len(sources))
 
@@ -59,6 +61,6 @@ func (p *Pipeline) Run(ctx context.Context) error {
 		close(merged)
 	}()
 
-	p.store.Run(ctx, merged)
+	p.store.run(merged)
 	return nil
 }

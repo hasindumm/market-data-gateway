@@ -20,7 +20,7 @@ type ExchangeConfig struct {
 }
 
 func MustLoad(path string) *Config {
-	cfg, err := Load(path)
+	cfg, err := load(path)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "config: %v\n", err)
 		os.Exit(1)
@@ -28,7 +28,7 @@ func MustLoad(path string) *Config {
 	return cfg
 }
 
-func Load(path string) (*Config, error) {
+func load(path string) (*Config, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("open %q: %w", path, err)

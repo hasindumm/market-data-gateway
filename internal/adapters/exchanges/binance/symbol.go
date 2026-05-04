@@ -15,10 +15,11 @@ import (
 )
 
 const (
-	wsBase      = "wss://stream.binance.com:9443/ws"
-	restBase    = "https://api.binance.com/api/v3/depth"
-	readTimeout = 60 * time.Second
-	restTimeout = 10 * time.Second
+	wsBase        = "wss://stream.binance.com:9443/ws"
+	restBase      = "https://api.binance.com/api/v3/depth"
+	readTimeout   = 60 * time.Second
+	restTimeout   = 10 * time.Second
+	symChanBuffer = 64
 )
 
 type symbolWorker struct {
@@ -50,7 +51,9 @@ func newSymbolWorker(symbol string, depth int) *symbolWorker {
 }
 
 func (w *symbolWorker) run(ctx context.Context) <-chan domain.Update {
-	out := make(chan domain.Update, 64)
+	// buffer 64: chosen empirically  exact sizing depends on Binance's burst rate
+	// for this symbol which varies with market volatility. Too small risks blocking
+	out := make(chan domain.Update, symChanBuffer)
 	// sync logic here
 
 	go func() {
@@ -165,7 +168,7 @@ func (w *symbolWorker) sync(ctx context.Context, out chan<- domain.Update) error
 	//Verify the bridge is solid
 	if len(buffered) > 0 {
 		first := buffered[0]
-		if !(first.FirstUpdateID <= lastID+1 && lastID+1 <= first.FinalUpdateID) {
+		if !(first.FirstUpdateID <= lastID && lastID <= first.FinalUpdateID) {
 			return fmt.Errorf("snapshot stale: lastUpdateId=%d first.U=%d first.u=%d",
 				lastID, first.FirstUpdateID, first.FinalUpdateID)
 		}
@@ -213,11 +216,11 @@ func (w *symbolWorker) sync(ctx context.Context, out chan<- domain.Update) error
 			return fmt.Errorf("ws read: %w", err)
 		case ev := <-msgCh:
 			if ev.FinalUpdateID <= prevFinal {
-				continue
+				continue // stale ignore it
 			}
 			if ev.FirstUpdateID > prevFinal+1 {
 				return fmt.Errorf("sequence gap: expected U<=%d got U=%d",
-					prevFinal+1, ev.FirstUpdateID)
+					prevFinal+1, ev.FirstUpdateID) // gap identified
 			}
 			prevFinal = ev.FinalUpdateID
 			select {

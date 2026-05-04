@@ -4,31 +4,35 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/gorilla/websocket"
 	"log"
 	"market-data-gateway/internal/domain"
 	"strconv"
 	"time"
+
+	"github.com/gorilla/websocket"
 )
 
 const wsURL = "wss://ws.kraken.com/v2"
 
-type Adapter struct {
+type adapter struct {
 	symbols []string
 	depth   int
 }
 
-func NewAdapter(symbols []string, depth int) *Adapter {
-	return &Adapter{
+func NewAdapter(symbols []string, depth int) *adapter {
+	return &adapter{
 		symbols: symbols,
 		depth:   depth,
 	}
 }
 
-func (a *Adapter) Name() string { return "kraken" }
+func (a *adapter) Name() string { return "kraken" }
 
-func (a *Adapter) Run(ctx context.Context) (<-chan domain.Update, error) {
-	out := make(chan domain.Update, 64)
+func (a *adapter) Run(ctx context.Context) (<-chan domain.Update, error) {
+
+	// buffer 128: chosen empirically  exact sizing depends on kraken's burst rate
+	// for this which varies with market volatility. Too small risks blocking
+	out := make(chan domain.Update, 128)
 
 	go func() {
 		defer close(out)
@@ -59,7 +63,7 @@ func (a *Adapter) Run(ctx context.Context) (<-chan domain.Update, error) {
 	return out, nil
 }
 
-func (a *Adapter) connect(ctx context.Context, out chan<- domain.Update) error {
+func (a *adapter) connect(ctx context.Context, out chan<- domain.Update) error {
 	conn, _, err := websocket.DefaultDialer.DialContext(ctx, wsURL, nil)
 	if err != nil {
 		return fmt.Errorf("dial: %w", err)

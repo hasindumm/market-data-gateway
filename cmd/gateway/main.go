@@ -87,10 +87,14 @@ func main() {
 	<-ctx.Done()
 	log.Println("main: shutting down")
 
+	if err := adminSrv.Shutdown(context.Background()); err != nil {
+		log.Printf("admin: shutdown error: %v", err)
+	}
+
 	if err := server.Shutdown(context.Background()); err != nil {
 		log.Printf("main: server shutdown error: %v", err)
 	}
-	
+
 	manager.Shutdown()
 	wg.Wait()
 	log.Println("main: done")

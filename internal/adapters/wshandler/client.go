@@ -4,26 +4,28 @@ import (
 	"context"
 	"errors"
 	"log"
-	"market-data-gateway/internal/domain"
 	"market-data-gateway/internal/core"
+	"market-data-gateway/internal/domain"
 	"sort"
 	"sync"
 
 	"github.com/gorilla/websocket"
 )
 
+const clientChanBuffer = 64
+
 type client struct {
-	conn    *websocket.Conn
-	manager *Manager
-	send chan domain.Update
-	writeMu sync.Mutex
+	conn      *websocket.Conn
+	manager   *manager
+	send      chan domain.Update
+	writeMu   sync.Mutex
 	filterMu  sync.RWMutex
 	filter    map[string]struct{}
 	closeOnce sync.Once
-	done chan struct{}
+	done      chan struct{}
 }
 
-type Ack struct {
+type ack struct {
 	Type    string   `json:"type"`
 	Action  string   `json:"action"`
 	Symbols []string `json:"symbols"`
@@ -31,13 +33,13 @@ type Ack struct {
 	Error   string   `json:"error"`
 }
 
-func newClient(conn *websocket.Conn, manager *Manager) *client {
+func newClient(conn *websocket.Conn, manager *manager) *client {
 	return &client{
 		conn:    conn,
 		manager: manager,
-		send:   make(chan domain.Update, 64),
-		filter: make(map[string]struct{}),
-		done:   make(chan struct{}),
+		send:    make(chan domain.Update, clientChanBuffer),
+		filter:  make(map[string]struct{}),
+		done:    make(chan struct{}),
 	}
 }
 
@@ -94,7 +96,7 @@ func (c *client) sendAck(action string, symbols []string, err error) {
 	if filter == nil {
 		filter = []string{}
 	}
-	ack := Ack{
+	ack := ack{
 		Type:    "ack",
 		Action:  action,
 		Symbols: symbols,
@@ -140,13 +142,11 @@ func (c *client) currentFilter() []string {
 	return out
 }
 
-
-func (c *client) writeJSON(v interface{}) error {
+func (c *client) writeJSON(v any) error {
 	c.writeMu.Lock()
 	defer c.writeMu.Unlock()
 	return c.conn.WriteJSON(v)
 }
-
 
 func (c *client) writeMessage(ctx context.Context) {
 
@@ -168,7 +168,7 @@ func (c *client) writeMessage(ctx context.Context) {
 	}
 }
 
-// check before writing is given symbol requeted 
+// check before writing is given symbol requeted
 func (c *client) wants(symbol string) bool {
 	c.filterMu.RLock()
 	defer c.filterMu.RUnlock()
