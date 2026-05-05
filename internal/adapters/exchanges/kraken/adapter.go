@@ -12,7 +12,10 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-const wsURL = "wss://ws.kraken.com/v2"
+const (
+	wsURL         = "wss://ws.kraken.com/v2"
+	krakenChanBuffer = 64
+)
 
 type adapter struct {
 	symbols []string
@@ -30,9 +33,9 @@ func (a *adapter) Name() string { return "kraken" }
 
 func (a *adapter) Run(ctx context.Context) (<-chan domain.Update, error) {
 
-	// buffer 128: chosen empirically  exact sizing depends on kraken's burst rate
+	// buffer 64: chosen empirically  exact sizing depends on kraken's burst rate
 	// for this which varies with market volatility. Too small risks blocking
-	out := make(chan domain.Update, 128)
+	out := make(chan domain.Update, len(a.symbols)*krakenChanBuffer)
 
 	go func() {
 		defer close(out)

@@ -20,6 +20,7 @@ const (
 	readTimeout   = 60 * time.Second
 	restTimeout   = 10 * time.Second
 	symChanBuffer = 64
+	msgChanBuffer = 128
 )
 
 type symbolWorker struct {
@@ -102,7 +103,10 @@ func (w *symbolWorker) sync(ctx context.Context, out chan<- domain.Update) error
 		return conn.WriteControl(websocket.PongMessage, []byte(data), time.Now().Add(5*time.Second))
 	})
 
-	msgCh := make(chan depthEvent, 1000)
+	// snapshot fetch takes 1-2 seconds
+	// binance depth stream: 10-25 updates/sec per symbol at peak
+	// until snapshot comes nothing drains from here
+	msgCh := make(chan depthEvent, msgChanBuffer)
 	readErrCh := make(chan error, 1)
 
 	// read from ws conn

@@ -7,7 +7,7 @@ import (
 	"sync"
 )
 
-const exchangeChanBuffer = 512
+const exchangeChanBuffer = 256
 
 type Exchanger interface {
 	Run(ctx context.Context) (<-chan domain.Update, error)
@@ -42,9 +42,10 @@ func (p *pipeline) Run(ctx context.Context) error {
 		}
 		sources = append(sources, updateChan)
 	}
-	// buffer 512: sized to exceed combined adapter throughput
-	// each binance adapter  buffers len(symbols)*64, and kraken buffers 128 this covers fan-in of all adapters
-	merged := make(chan domain.Update, exchangeChanBuffer)
+	// buffer 256 for each exchange: sized to exceed combined adapter throughput
+	// each binance adapter  buffers len(symbols)*64, and kraken buffers len(symbols)*64 this covers fan-in of all adapters
+	// but this will drain fast since store consuming continously
+	merged := make(chan domain.Update, len(p.exchanges)*exchangeChanBuffer)
 	var wg sync.WaitGroup
 	wg.Add(len(sources))
 
