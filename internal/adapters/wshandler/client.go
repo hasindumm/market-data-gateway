@@ -8,11 +8,16 @@ import (
 	"market-data-gateway/internal/domain"
 	"sort"
 	"sync"
+	"time"
 
 	"github.com/gorilla/websocket"
 )
 
-const clientChanBuffer = 64
+const (
+	clientChanBuffer = 64
+	pongWait         = 60 * time.Second
+	pingInterval     = 30 * time.Second
+)
 
 type Client struct {
 	conn      *websocket.Conn
@@ -46,6 +51,7 @@ func newClient(conn *websocket.Conn, manager *Manager) *Client {
 func (c *Client) cleanup() {
 	c.closeOnce.Do(func() {
 		c.manager.store.Unsubscribe(c.send)
+		close(c.send)
 		close(c.done)
 		c.conn.Close()
 		c.manager.removeClient(c)
@@ -55,6 +61,12 @@ func (c *Client) cleanup() {
 func (c *Client) readMessage(store *core.Store) {
 
 	defer c.cleanup()
+
+	c.conn.SetReadDeadline(time.Now().Add(pongWait))
+	c.conn.SetPongHandler(func(string) error {
+		c.conn.SetReadDeadline(time.Now().Add(pongWait))
+		return nil
+	})
 	for {
 		var msg struct {
 			Action  string   `json:"action"`
@@ -151,6 +163,10 @@ func (c *Client) writeJSON(v any) error {
 func (c *Client) writeMessage(ctx context.Context) {
 
 	defer c.cleanup()
+
+	pingTicker := time.NewTicker(pingInterval)
+	defer pingTicker.Stop()
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -162,6 +178,18 @@ func (c *Client) writeMessage(ctx context.Context) {
 				continue
 			}
 			if err := c.writeJSON(u); err != nil {
+				return
+			}
+
+		case <-pingTicker.C:
+			c.writeMu.Lock()
+			err := c.conn.WriteControl(
+				websocket.PingMessage,
+				nil,
+				time.Now().Add(5*time.Second),
+			)
+			c.writeMu.Unlock()
+			if err != nil {
 				return
 			}
 		}
