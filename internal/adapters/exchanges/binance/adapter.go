@@ -6,23 +6,23 @@ import (
 	"sync"
 )
 
-type adapter struct {
+type Adapter struct {
 	symbols []string
 	depth   int
 	workers map[string]*symbolWorker
 }
 
-func NewAdapter(symbols []string, depth int) *adapter {
-	return &adapter{
+func NewAdapter(symbols []string, depth int) *Adapter {
+	return &Adapter{
 		symbols: symbols,
 		depth:   depth,
 		workers: make(map[string]*symbolWorker),
 	}
 }
 
-func (a *adapter) Name() string { return "binance" }
+func (a *Adapter) Name() string { return "binance" }
 
-func (a *adapter) Run(ctx context.Context) (<-chan domain.Update, error) {
+func (a *Adapter) Run(ctx context.Context) (<-chan domain.Update, error) {
 	perSym := make([]<-chan domain.Update, 0, len(a.symbols))
 
 	for _, sym := range a.symbols {

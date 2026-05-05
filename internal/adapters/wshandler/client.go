@@ -14,9 +14,9 @@ import (
 
 const clientChanBuffer = 64
 
-type client struct {
+type Client struct {
 	conn      *websocket.Conn
-	manager   *manager
+	manager   *Manager
 	send      chan domain.Update
 	writeMu   sync.Mutex
 	filterMu  sync.RWMutex
@@ -33,8 +33,8 @@ type ack struct {
 	Error   string   `json:"error"`
 }
 
-func newClient(conn *websocket.Conn, manager *manager) *client {
-	return &client{
+func newClient(conn *websocket.Conn, manager *Manager) *Client {
+	return &Client{
 		conn:    conn,
 		manager: manager,
 		send:    make(chan domain.Update, clientChanBuffer),
@@ -43,7 +43,7 @@ func newClient(conn *websocket.Conn, manager *manager) *client {
 	}
 }
 
-func (c *client) cleanup() {
+func (c *Client) cleanup() {
 	c.closeOnce.Do(func() {
 		c.manager.store.Unsubscribe(c.send)
 		close(c.done)
@@ -52,7 +52,7 @@ func (c *client) cleanup() {
 	})
 }
 
-func (c *client) readMessage(store *core.Store) {
+func (c *Client) readMessage(store *core.Store) {
 
 	defer c.cleanup()
 	for {
@@ -88,7 +88,7 @@ func (c *client) readMessage(store *core.Store) {
 
 }
 
-func (c *client) sendAck(action string, symbols []string, err error) {
+func (c *Client) sendAck(action string, symbols []string, err error) {
 	if symbols == nil {
 		symbols = []string{}
 	}
@@ -110,7 +110,7 @@ func (c *client) sendAck(action string, symbols []string, err error) {
 	}
 }
 
-func (c *client) addToFilter(symbols []string) []string {
+func (c *Client) addToFilter(symbols []string) []string {
 	c.filterMu.Lock()
 	defer c.filterMu.Unlock()
 	var added []string
@@ -123,7 +123,7 @@ func (c *client) addToFilter(symbols []string) []string {
 	return added
 }
 
-func (c *client) removeFromFilter(symbols []string) {
+func (c *Client) removeFromFilter(symbols []string) {
 	c.filterMu.Lock()
 	defer c.filterMu.Unlock()
 	for _, s := range symbols {
@@ -131,7 +131,7 @@ func (c *client) removeFromFilter(symbols []string) {
 	}
 }
 
-func (c *client) currentFilter() []string {
+func (c *Client) currentFilter() []string {
 	c.filterMu.RLock()
 	defer c.filterMu.RUnlock()
 	out := make([]string, 0, len(c.filter))
@@ -142,13 +142,13 @@ func (c *client) currentFilter() []string {
 	return out
 }
 
-func (c *client) writeJSON(v any) error {
+func (c *Client) writeJSON(v any) error {
 	c.writeMu.Lock()
 	defer c.writeMu.Unlock()
 	return c.conn.WriteJSON(v)
 }
 
-func (c *client) writeMessage(ctx context.Context) {
+func (c *Client) writeMessage(ctx context.Context) {
 
 	defer c.cleanup()
 	for {
@@ -169,7 +169,7 @@ func (c *client) writeMessage(ctx context.Context) {
 }
 
 // check before writing is given symbol requeted
-func (c *client) wants(symbol string) bool {
+func (c *Client) wants(symbol string) bool {
 	c.filterMu.RLock()
 	defer c.filterMu.RUnlock()
 	if len(c.filter) == 0 {

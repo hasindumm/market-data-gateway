@@ -14,13 +14,13 @@ type Exchanger interface {
 	Name() string
 }
 
-type pipeline struct {
+type Pipeline struct {
 	exchanges []Exchanger
 	store     *Store
 }
 
-func NewPipeline(exchanges []Exchanger, store *Store) *pipeline {
-	return &pipeline{
+func NewPipeline(exchanges []Exchanger, store *Store) *Pipeline {
+	return &Pipeline{
 		exchanges: exchanges,
 		store:     store,
 	}
@@ -32,7 +32,7 @@ func NewPipeline(exchanges []Exchanger, store *Store) *pipeline {
 // then loop the array of recevive channel and start go routine for every exchnage spsesific channel
 // when something came over a channel get that and put into mergerd channel
 // finally when something showed up in merged channel apply it to center store
-func (p *pipeline) Run(ctx context.Context) error {
+func (p *Pipeline) Run(ctx context.Context) error {
 	sources := make([]<-chan domain.Update, 0, len(p.exchanges))
 
 	for _, exc := range p.exchanges {

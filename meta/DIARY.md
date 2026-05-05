@@ -228,4 +228,4 @@ and drive all gateway configuration from a single config.json file.
   an API design choice.
 
 **Next:**
-- refactor if there is any code smells or design improvemt/logging 
+- refactor if there is any code smells or design improvemt/logging

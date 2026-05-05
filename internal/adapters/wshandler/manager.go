@@ -17,21 +17,21 @@ var (
 	}
 )
 
-type manager struct {
+type Manager struct {
 	store   *core.Store
-	clients map[*client]struct{}
+	clients map[*Client]struct{}
 	wg      sync.WaitGroup
 	mu      sync.Mutex
 }
 
-func NewManager(store *core.Store) *manager {
-	return &manager{
+func NewManager(store *core.Store) *Manager {
+	return &Manager{
 		store:   store,
-		clients: make(map[*client]struct{}),
+		clients: make(map[*Client]struct{}),
 	}
 }
 
-func (m *manager) ServeWS(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+func (m *Manager) ServeWS(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 
 	conn, err := websocketUpgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -65,16 +65,16 @@ func (m *manager) ServeWS(ctx context.Context, w http.ResponseWriter, r *http.Re
 
 }
 
-func (m *manager) removeClient(c *client) {
+func (m *Manager) removeClient(c *Client) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	delete(m.clients, c)
 }
 
-func (m *manager) Shutdown() {
+func (m *Manager) Shutdown() {
 	m.mu.Lock()
 	// Clients are copied under lock to avoid deadlock since cleanup calls removeClient which also locks mu.
-	clients := make([]*client, 0, len(m.clients))
+	clients := make([]*Client, 0, len(m.clients))
 	for c := range m.clients {
 		clients = append(clients, c)
 	}
