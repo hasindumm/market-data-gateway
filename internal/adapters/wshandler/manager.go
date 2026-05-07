@@ -39,16 +39,18 @@ func (m *Manager) ServeWS(ctx context.Context, w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	for _, snap := range m.store.SnapshotAll() {
+	c := newClient(conn, m)
+
+	snaps := m.store.SubscribeAndSnapshot(c.send)
+	for _, snap := range snaps {
 		if err := conn.WriteJSON(snap); err != nil {
 			log.Printf("wshandler: initial snapshot: %v", err)
+			m.store.Unsubscribe(c.send)
 			conn.Close()
 			return
 		}
 	}
 
-	c := newClient(conn, m)
-	m.store.Subscribe(c.send)
 	m.mu.Lock()
 	m.clients[c] = struct{}{}
 	m.mu.Unlock()

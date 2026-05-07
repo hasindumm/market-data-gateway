@@ -229,3 +229,34 @@ and drive all gateway configuration from a single config.json file.
 
 **Next:**
 - refactor if there is any code smells or design improvemt/logging
+
+## 2026-05-07 — Post-submission review prep fixes
+
+**Goal:**
+Reread the codebase end to end before the code review and did some improvements
+
+**What worked:**
+- added SubscribeAndSnapshot to avoid any data misses between first snapshot and delta updates comes until subribe to the perticulat client 
+now no any data missed by client between snapshot and following delta updates
+
+- Added child context with WithCancel in pipeline. if in future any exchange added with possible error in start up,
+now previously already started exchanges  will clean up properly (exit go routines and close channels)
+
+
+**What broke (and why):**
+- nothing brokes at this stage since these are improvemts 
+
+**Concept unlocked:**
+- - Mutex vs RWMutex is decided by access pattern, with weight as the underlying
+  reason. RWMutex has extra weight to allow parallel readers  that
+  usefull when reads dominate.  For short writes, plain Mutex is lighter and faster.
+  In the store, books use RWMutex because reads are frequent.
+   subscribers use Mutex because every operation is a quick
+  add or remove where the RWMutex overhead is not worth it.
+
+**Still fuzzy:**
+- - When the clients map grows, reads start to dominates and RWMutex might make more sense.
+  Not sure at what point the switch becomes worth it.
+
+**Next:**
+- refactor if there is any code smells or design improvemt/logging

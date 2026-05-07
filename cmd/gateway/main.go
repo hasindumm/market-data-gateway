@@ -59,6 +59,7 @@ func main() {
 		defer wg.Done()
 		if err := pipeline.Run(ctx); err != nil {
 			log.Printf("pipeline error: %v", err)
+			cancel()
 		}
 	}()
 

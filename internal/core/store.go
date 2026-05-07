@@ -84,26 +84,26 @@ func (s *Store) broadcast(u domain.Update) {
 	}
 }
 
-func (s *Store) Subscribe(ch chan<- domain.Update) {
-	s.subsMu.Lock()
-	defer s.subsMu.Unlock()
-	s.subscribers[ch] = struct{}{}
-}
-
 func (s *Store) Unsubscribe(ch chan<- domain.Update) {
 	s.subsMu.Lock()
 	defer s.subsMu.Unlock()
 	delete(s.subscribers, ch)
 }
 
-func (s *Store) SnapshotAll() []domain.Update {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	snaps := make([]domain.Update, 0, len(s.books))
-	for key, b := range s.books {
-		snaps = append(snaps, buildSnapshot(key.Exchange, key.Symbol, b))
-	}
-	return snaps
+func (s *Store) SubscribeAndSnapshot(ch chan<- domain.Update) []domain.Update {
+    s.mu.RLock()
+    defer s.mu.RUnlock()
+
+    snaps := make([]domain.Update, 0, len(s.books))
+    for key, b := range s.books {
+        snaps = append(snaps, buildSnapshot(key.Exchange, key.Symbol, b))
+    }
+
+    s.subsMu.Lock()
+    s.subscribers[ch] = struct{}{}
+    s.subsMu.Unlock()
+
+    return snaps
 }
 
 // returns one snapshot per given symbol

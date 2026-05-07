@@ -33,6 +33,9 @@ func NewPipeline(exchanges []Exchanger, store *Store) *Pipeline {
 // when something came over a channel get that and put into mergerd channel
 // finally when something showed up in merged channel apply it to center store
 func (p *Pipeline) Run(ctx context.Context) error {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
 	sources := make([]<-chan domain.Update, 0, len(p.exchanges))
 
 	for _, exc := range p.exchanges {

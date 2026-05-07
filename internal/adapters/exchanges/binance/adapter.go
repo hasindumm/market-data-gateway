@@ -9,14 +9,12 @@ import (
 type Adapter struct {
 	symbols []string
 	depth   int
-	workers map[string]*symbolWorker
 }
 
 func NewAdapter(symbols []string, depth int) *Adapter {
 	return &Adapter{
 		symbols: symbols,
 		depth:   depth,
-		workers: make(map[string]*symbolWorker),
 	}
 }
 
@@ -27,7 +25,6 @@ func (a *Adapter) Run(ctx context.Context) (<-chan domain.Update, error) {
 
 	for _, sym := range a.symbols {
 		w := newSymbolWorker(sym, a.depth)
-		a.workers[sym] = w
 		perSym = append(perSym, w.run(ctx))
 	}
 
