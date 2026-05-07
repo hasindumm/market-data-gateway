@@ -13,8 +13,10 @@ import (
 )
 
 const (
-	wsURL         = "wss://ws.kraken.com/v2"
-	krakenChanBuffer = 64
+	wsURL = "wss://ws.kraken.com/v2"
+	// Kraken book channel is event-driven (not throttled) — updates fire
+	// when trades or orders change the book, no fixed cadence in the docs.
+	symChanBuffer = 64
 )
 
 type Adapter struct {
@@ -35,7 +37,7 @@ func (a *Adapter) Run(ctx context.Context) (<-chan domain.Update, error) {
 
 	// buffer 64: chosen empirically  exact sizing depends on kraken's burst rate
 	// for this which varies with market volatility. Too small risks blocking
-	out := make(chan domain.Update, len(a.symbols)*krakenChanBuffer)
+	out := make(chan domain.Update, len(a.symbols)*symChanBuffer)
 
 	go func() {
 		defer close(out)

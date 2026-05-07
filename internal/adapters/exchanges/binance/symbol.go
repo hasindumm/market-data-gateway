@@ -15,10 +15,15 @@ import (
 )
 
 const (
-	wsBase        = "wss://stream.binance.com:9443/ws"
-	restBase      = "https://api.binance.com/api/v3/depth"
-	readTimeout   = 60 * time.Second
-	restTimeout   = 10 * time.Second
+	wsBase      = "wss://stream.binance.com:9443/ws"
+	restBase    = "https://api.binance.com/api/v3/depth"
+	readTimeout = 60 * time.Second
+	restTimeout = 10 * time.Second
+	
+	// Binance @depth pushes ~1 update/sec per symbol
+	// (docs: https://github.com/binance/binance-spot-api-docs/blob/master/web-socket-streams.md#detailed-stream-information).
+	// 64 slots is generous headroom 
+	// can hold more than a 1 minute without drain
 	symChanBuffer = 64
 	msgChanBuffer = 128
 )
@@ -104,7 +109,7 @@ func (w *symbolWorker) sync(ctx context.Context, out chan<- domain.Update) error
 	})
 
 	// snapshot fetch takes 1-2 seconds
-	// binance depth stream: 10-25 updates/sec per symbol at peak
+	// binance depth stream: 1 updates/sec per symbol at peak
 	// until snapshot comes nothing drains from here
 	msgCh := make(chan depthEvent, msgChanBuffer)
 	readErrCh := make(chan error, 1)
@@ -172,7 +177,7 @@ func (w *symbolWorker) sync(ctx context.Context, out chan<- domain.Update) error
 	//Verify the bridge is solid
 	if len(buffered) > 0 {
 		first := buffered[0]
-		if !(first.FirstUpdateID <= lastID && lastID <= first.FinalUpdateID) {
+		if !(first.FirstUpdateID <= lastID+1 && lastID+1 <= first.FinalUpdateID) {
 			return fmt.Errorf("snapshot stale: lastUpdateId=%d first.U=%d first.u=%d",
 				lastID, first.FirstUpdateID, first.FinalUpdateID)
 		}
